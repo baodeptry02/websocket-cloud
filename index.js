@@ -63,7 +63,7 @@ app.post("/webhook/payment", async (req, res) => {
 
     try {
       const { data: orderData } = await axios.get(
-        `http://localhost:5001/lms-backend-1d9f5/us-central1/app/api/order/get-order-user/${orderId}`
+        `https://93f1-116-110-41-100.ngrok-free.app/lms-backend-1d9f5/us-central1/app/api/order/get-order-user/${orderId}`
       );
       const userId = orderData.data;
 
@@ -74,11 +74,10 @@ app.post("/webhook/payment", async (req, res) => {
       }
 
       const { data: updateResponse } = await axios.post(
-        `http://localhost:5001/lms-backend-1d9f5/us-central1/app/api/order/${userId}/${orderId}`
+        `https://93f1-116-110-41-100.ngrok-free.app/lms-backend-1d9f5/us-central1/app/api/order/${userId}/${orderId}`
       );
       const message =
         updateResponse.message || "Order status updated successfully";
-      console.log(message);
 
       io.to(userId).emit("update_order", message);
 
