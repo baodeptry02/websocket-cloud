@@ -3,6 +3,7 @@ const http = require("http");
 const { Server } = require("socket.io");
 const cors = require("cors");
 const app = express();
+const axios = require("axios");
 app.use(express.json());
 
 // Cho phép CORS
@@ -38,7 +39,7 @@ io.on("connection", (socket) => {
 });
 
 app.post("/new_order", (req, res) => {
-  const order = req.body; // Lấy dữ liệu từ body
+  const order = req.body;
 
   if (!order) {
     return res.status(400).json({ message: "Invalid order data" });
@@ -46,6 +47,29 @@ app.post("/new_order", (req, res) => {
 
   io.emit("update_orders", order);
   res.status(201).json({ message: "Order broadcasted successfully" });
+});
+
+app.post("/webhook/payment", async (req, res) => {
+  try {
+    const { content } = req.body;
+
+    if (!content || !content.includes("-")) {
+      return res.status(400).json({ error: "Invalid transaction content" });
+    }
+
+    const [userId, orderId] = content.split("-");
+
+    const baseURL =
+      "http://localhost:5001/lms-backend-1d9f5/us-central1/app/api";
+    await axios.post(`${baseURL}/order/${userId}/${orderId}`);
+
+    io.emit("update_order", { message: `Payment order ${orderId} success` });
+
+    res.status(200).json({ message: "Order updated successfully" });
+  } catch (error) {
+    console.error("❌ Lỗi webhook:", error.message);
+    res.status(500).json({ error: "Error processing webhook" });
+  }
 });
 
 // Chạy server trên port 5000
