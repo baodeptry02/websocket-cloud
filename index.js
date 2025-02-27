@@ -56,7 +56,7 @@ app.post("/new_order", (req, res) => {
 
 app.post("/webhook/payment", async (req, res) => {
   try {
-    const { content: orderId } = req.body;
+    const { code: orderId } = req.body;
     if (!orderId) {
       return res.status(400).json({ error: "Missing orderId" });
     }
