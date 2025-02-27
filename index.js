@@ -28,6 +28,11 @@ const io = new Server(server, {
 io.on("connection", (socket) => {
   console.log("User connected: " + socket.id);
 
+  socket.on("join_room", (userId) => {
+    console.log("User joined room:", userId);
+    socket.join(userId);
+  });
+
   socket.on("new_order", (order) => {
     console.log("New order received:", order);
     io.emit("update_orders", order);
@@ -51,28 +56,46 @@ app.post("/new_order", (req, res) => {
 
 app.post("/webhook/payment", async (req, res) => {
   try {
-    const { content } = req.body;
-
-    if (!content || !content.includes("-")) {
-      return res.status(400).json({ error: "Invalid transaction content" });
+    const { content: orderId } = req.body;
+    if (!orderId) {
+      return res.status(400).json({ error: "Missing orderId" });
     }
 
-    const [userId, orderId] = content.split("-");
+    try {
+      const { data: orderData } = await axios.get(
+        `http://localhost:5001/lms-backend-1d9f5/us-central1/app/api/order/get-order-user/${orderId}`
+      );
+      const userId = orderData.data;
 
-    const baseURL =
-      "http://localhost:5001/lms-backend-1d9f5/us-central1/app/api";
-    await axios.post(`${baseURL}/order/${userId}/${orderId}`);
+      if (!userId) {
+        return res
+          .status(404)
+          .json({ error: "User ID not found for this order" });
+      }
 
-    io.emit("update_order", { message: `Payment order ${orderId} success` });
+      const { data: updateResponse } = await axios.post(
+        `http://localhost:5001/lms-backend-1d9f5/us-central1/app/api/order/${userId}/${orderId}`
+      );
+      const message =
+        updateResponse.message || "Order status updated successfully";
+      console.log(message);
 
-    res.status(200).json({ message: "Order updated successfully" });
+      io.to(userId).emit("update_order", message);
+
+      res.status(200).json({ message });
+    } catch (error) {
+      console.error(
+        "❌ Error updating order:",
+        error.response?.data || error.message
+      );
+      res.status(500).json({ error: "Error updating order" });
+    }
   } catch (error) {
-    console.error("❌ Lỗi webhook:", error.message);
+    console.error("❌ Webhook error:", error.message);
     res.status(500).json({ error: "Error processing webhook" });
   }
 });
 
-// Chạy server trên port 5000
 server.listen(5000, () => {
   console.log("WebSocket server running on port 5000");
 });
